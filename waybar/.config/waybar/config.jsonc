@@ -2,7 +2,7 @@
   "position": "top",
   "modules-left": ["hyprland/workspaces"],
   "modules-center": ["clock"],
-  "modules-right": ["network", "pulseaudio", "battery", "tray", "cpu", "memory" ],
+  "modules-right": ["network", "pulseaudio", "battery", "tray", "cpu", "memory", "custom/wl-gammarelay-temperature", "custom/wl-gammarelay-brightness" ],
   "clock": {
     "format": "<span foreground='#f5c2e7'></span>{:%a %d %H:%M}",
     "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>"
@@ -49,5 +49,11 @@
   "tray": {
     "icon-size": 21,
     "spacing": 10
+  },
+  "custom/wl-gammarelay-temperature": {
+    "format": "{} ",
+    "exec": "wl-gammarelay --subscribe Temperature",
+    "on-scroll-up": "busctl --user -- call rs.wl-gammarelay / rs.wl.gammarelay UpdateTemperature n +100",
+    "on-scroll-down": "busctl --user -- call rs.wl-gammarelay / rs.wl.gammarelay UpdateTemperature n -100"
   },
 }
