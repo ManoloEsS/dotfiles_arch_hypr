@@ -205,3 +205,6 @@ compinit
 
 # Generated for envman. Do not edit.
 [ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
+
+# To customize prompt, run `p10k configure` or edit ~/dotfiles/pl10k/.p10k.zsh.
+[[ ! -f ~/dotfiles/pl10k/.p10k.zsh ]] || source ~/dotfiles/pl10k/.p10k.zsh
