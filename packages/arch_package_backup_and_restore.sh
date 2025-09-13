@@ -8,6 +8,7 @@ AURLIST="aurlist.txt"
 SKIP_PKGS=(
   # Kernels
   "linux" "linux-lts" "linux-zen" "linux-hardened"
+  "virtualbox-host-modules-arch"
 
   # Firmware
   "linux-firmware"
