@@ -101,6 +101,8 @@ unset AUTO_NOTIFY_THRESHOLD
 
 # Compilation flags
 # export ARCHFLAGS="-arch $(uname -m)"
+setopt dot_glob
+setopt extended_glob
 
 # Set personal aliases, overriding those provided by Oh My Zsh libs,
 # plugins, and themes. Aliases can be placed here, though Oh My Zsh
