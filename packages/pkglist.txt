@@ -18,11 +18,13 @@ epiphany
 evince
 exfatprogs
 fastfetch
+fd
 firefox
 fzf
 gdm
 git
 github-cli
+glow
 gnome-backgrounds
 gnome-calculator
 gnome-calendar
@@ -110,6 +112,7 @@ postgresql
 print-manager
 python-pip
 python-pipx
+ripgrep
 rygel
 simple-scan
 snapshot
