@@ -1,16 +1,7 @@
-aquamarine
 brave-bin
 epson-inkjet-printer-escpr
-hyprcursor
-hyprgraphics
-hyprland
-hyprland-qt-support
-hyprland-qtutils
-hyprlang
-hyprutils
-hyprwayland-scanner
 quivira
-rofi-lbonn-wayland
+rofi-lbonn-wayland-git
 ttf-symbola
 ventoy
 wezterm-git

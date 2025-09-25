@@ -2,6 +2,9 @@ amd-ucode
 grub
 linux
 linux-firmware
+nvidia
 paru
 paru-debug
 virtualbox-host-modules-arch
+vulkan-intel
+vulkan-radeon
