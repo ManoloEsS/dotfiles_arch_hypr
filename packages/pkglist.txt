@@ -87,6 +87,7 @@ ncdu
 neovim
 network-manager-applet
 networkmanager
+noto-fonts
 npm
 ntfs-3g
 orca

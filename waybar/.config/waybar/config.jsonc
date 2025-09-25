@@ -1,7 +1,7 @@
 {
     "layer": "top",
     "position": "top",
-    "height": 24,
+    "height": 30,
     "spacing": 5,
 
     "modules-left": ["hyprland/workspaces", "custom/platform-profile", "hyprland/window"],
