@@ -1,4 +1,5 @@
 alsa-utils
+atac
 baobab
 base
 base-devel
@@ -21,6 +22,7 @@ endeavour
 epiphany
 evince
 exfatprogs
+extra-cmake-modules
 fastfetch
 fd
 file-roller
@@ -29,6 +31,7 @@ fzf
 gdm
 ghex
 git
+git-filter-repo
 github-cli
 glow
 gnome-backgrounds
@@ -71,6 +74,7 @@ gnome-tweaks
 gnome-user-docs
 gnome-user-share
 gnome-weather
+gobject-introspection
 gparted
 gptfdisk
 greetd
@@ -88,6 +92,7 @@ gvfs-nfs
 gvfs-onedrive
 gvfs-smb
 gvfs-wsdd
+httpie
 hyprcursor
 hyprgraphics
 hypridle
@@ -109,12 +114,14 @@ lightdm
 lightdm-gtk-greeter
 lightsoff
 loupe
+lsd
 malcontent
 man-db
 man-pages
 manuals
 nautilus
 ncdu
+ncspot
 neovim
 network-manager-applet
 networkmanager
@@ -122,6 +129,9 @@ noto-fonts
 npm
 ntfs-3g
 nwg-hello
+onetbb
+opencv
+opencv-samples
 orca
 otf-aurulent-nerd
 otf-codenewroman-nerd
@@ -153,6 +163,7 @@ rygel
 showtime
 simple-scan
 snapshot
+spotify-launcher
 starship
 stow
 sushi

@@ -1,5 +1,7 @@
 brave-bin
 epson-inkjet-printer-escpr
+nerdfetch
+postman-bin
 quivira
 rofi-lbonn-wayland-git
 ttf-symbola
