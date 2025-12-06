@@ -1,4 +1,6 @@
+7zip
 alsa-utils
+android-tools
 atac
 baobab
 base
@@ -99,8 +101,8 @@ hyprcursor
 hyprgraphics
 hypridle
 hyprland
+hyprland-guiutils
 hyprland-qt-support
-hyprland-qtutils
 hyprlang
 hyprlock
 hyprpaper
@@ -123,7 +125,6 @@ man-pages
 manuals
 nautilus
 ncdu
-ncspot
 neovim
 network-manager-applet
 networkmanager
@@ -132,6 +133,7 @@ npm
 ntfs-3g
 nwg-hello
 onetbb
+openbsd-netcat
 opencv
 opencv-samples
 orca
@@ -156,10 +158,13 @@ pipewire-jack
 pipewire-pulse
 postgresql
 print-manager
+python-beautifulsoup4
 python-pip
 python-pipx
+python-pyserial
 qt5-wayland
 quadrapassel
+resvg
 ripgrep
 rygel
 showtime
@@ -238,6 +243,7 @@ ufw
 usbutils
 vulkan-headers
 waybar
+wget
 wireplumber
 wl-clipboard
 woff2-font-awesome
@@ -245,6 +251,7 @@ wofi
 xdg-desktop-portal-gnome
 xdg-desktop-portal-hyprland
 xdg-user-dirs-gtk
+yazi
 yelp
 zoxide
 zram-generator

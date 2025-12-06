@@ -1,4 +1,5 @@
 brave-bin
+docker-desktop
 epson-inkjet-printer-escpr
 nerdfetch
 postman-bin
