@@ -157,6 +157,7 @@ pipewire-alsa
 pipewire-jack
 pipewire-pulse
 postgresql
+postgresql-old-upgrade
 print-manager
 python-beautifulsoup4
 python-pip
