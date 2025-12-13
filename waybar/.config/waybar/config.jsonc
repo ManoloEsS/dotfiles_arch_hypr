@@ -19,7 +19,6 @@
         "idle_inhibitor",
         "network",
         "bluetooth",
-        "custom/hyprsunset",
         "tray",
         "custom/notification"
     ],

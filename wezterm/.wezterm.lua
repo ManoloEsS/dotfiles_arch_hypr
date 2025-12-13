@@ -11,7 +11,14 @@ config.color_scheme = "tokyonight-storm"
 config.hide_mouse_cursor_when_typing = true
 config.hide_tab_bar_if_only_one_tab = true
 config.enable_tab_bar = true
-config.window_background_opacity = 0.93
+config.window_background_opacity = 0.96
+
+config.window_padding = {
+	left = "0.2cell",
+	right = "0.1cell",
+	top = "0.4cell",
+	bottom = "0.0cell",
+}
 
 -- Font fallback list for missing glyphs:
 config.keys = {
