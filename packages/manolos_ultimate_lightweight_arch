@@ -1,110 +1,39 @@
-# Makefile for Ultimate Lightweight Arch Linux Setup
-# This Makefile automates a clean slate Arch Linux installation with Hyprland
+# Makefile for Simplified Arch Linux Dotfiles Setup
+# This Makefile automates dotfile restoration and configuration
 
 # Variables
 DOTFILES_DIR := $(HOME)/dotfiles_arch_hypr
 NVIM_CONFIG_DIR := ${XDG_CONFIG_HOME:-$(HOME)/.config}/nvim
 STOW_DIRS := fontconfig hypr pl10k tmux waybar wezterm wofi zsh
-DOTFILES_REPO := https://github.com/ManoloEsS/dotfiles_arch_hypr.git
-NVIM_REPO := https://github.com/ManoloEsS/kickstartmanolo.nvim.git
 
 # Phony targets
-.PHONY: all clone-dotfiles detect-hardware install-packages setup-nvim install-ohmyzsh setup-ohmyzsh-plugins change-shell cleanup-and-stow setup-bluetooth install-hyprland verify-stow-links verify-configs verify-complete-setup clean help
+.PHONY: all check-dotfiles install-packages install-ohmyzsh setup-ohmyzsh-plugins change-shell cleanup-and-stow verify-configs verify-complete-setup clean help
 
-# Detect hardware and select appropriate GPU drivers
-detect-hardware:
-	@echo "=== Detecting GPUs for driver installation ==="
-	@# Detect all GPUs - handles multiple GPU systems
-	@echo "# Hardware-specific GPU drivers" > /tmp/gpu_drivers.txt
-	@gpu_list=$$(lspci | grep -i vga | grep -i -o 'nvidia\|amd\|intel\|virtual' | sort -u); \
-	if [ -z "$$gpu_list" ]; then \
-		echo "No GPU detected, using generic drivers"; \
-		echo "# No GPU detected" >> /tmp/gpu_drivers.txt; \
-	else \
-		for gpu in $$gpu_list; do \
-			gpu_lower=$$(echo "$$gpu" | tr '[:upper:]' '[:lower:]'); \
-			case "$$gpu_lower" in \
-				nvidia) \
-					echo "NVIDIA GPU detected - adding NVIDIA drivers"; \
-					echo "nvidia nvidia-utils nvidia-settings nvidia-dkms" >> /tmp/gpu_drivers.txt ;; \
-				amd) \
-					echo "AMD GPU detected - adding AMD drivers"; \
-					echo "xf86-video-amdgpu vulkan-radeon mesa" >> /tmp/gpu_drivers.txt ;; \
-				intel) \
-					echo "Intel GPU detected - adding Intel drivers"; \
-					echo "xf86-video-intel vulkan-intel mesa" >> /tmp/gpu_drivers.txt ;; \
-				virtual|vmware) \
-					echo "Virtual GPU detected - adding VM drivers"; \
-					echo "xf86-video-vesa" >> /tmp/gpu_drivers.txt ;; \
-			esac; \
-		done; \
-	fi
-	@echo "GPU drivers to install:"; cat /tmp/gpu_drivers.txt
+# Default target - simplified dotfile setup
+all: check-dotfiles install-packages install-ohmyzsh setup-ohmyzsh-plugins change-shell cleanup-and-stow verify-complete-setup
+	@echo "=== Simplified dotfiles setup completed ==="
+	@echo "Packages restored from existing lists"
+	@echo "Oh My Zsh with plugins configured"
+	@echo "Configuration files stowed successfully"
 
-# Default target - clean slate Arch/Hyprland setup
-all: clone-dotfiles detect-hardware install-packages setup-nvim install-ohmyzsh setup-ohmyzsh-plugins change-shell cleanup-and-stow setup-fzf setup-bluetooth install-hyprland verify-complete-setup
-	@echo "=== Enhanced Arch/Hyprland installation completed ==="
-	@echo "GPU drivers automatically installed based on detected hardware"
-	@echo "Hyprland will auto-start on TTY login (TTY1-3)"
-	@echo "Bluetooth is ready for device pairing"
-
-# Clone dotfiles repository
-clone-dotfiles:
-	@echo "=== Cloning dotfiles repository ==="
+# Check if dotfiles exist locally, skip cloning if they do
+check-dotfiles:
+	@echo "=== Checking dotfiles directory ==="
 	@if [ -d "$(DOTFILES_DIR)" ]; then \
-		echo "Dotfiles directory already exists, removing..."; \
-		rm -rf $(DOTFILES_DIR); \
+		echo "✅ Dotfiles directory already exists locally"; \
+		echo "Skipping clone to preserve existing configurations"; \
+	else \
+		echo "❌ Dotfiles directory not found at $(DOTFILES_DIR)"; \
+		echo "Please ensure dotfiles are available before running this script"; \
+		exit 1; \
 	fi
-	mkdir -p $(DOTFILES_DIR) || exit 1
-	wget -O - https://github.com/ManoloEsS/dotfiles_arch_hypr/archive/main.tar.gz | tar -xz -C $(DOTFILES_DIR)/.. --strip-components=1 || exit 1
-	chmod +x $(DOTFILES_DIR)/packages/*.sh || exit 1
-	@echo "=== Dotfiles cloned successfully ==="
-
-
 
 # Install packages using the restore script
 install-packages:
 	@echo "=== Installing packages ==="
-	@# Ensure GPU drivers file exists
-	@if [ ! -f /tmp/gpu_drivers.txt ]; then \
-		echo "Running hardware detection first..."; \
-		$(MAKE) -f $(firstword $(MAKEFILE_LIST)) detect-hardware; \
-	fi
-	@# Install GPU drivers first via pacman
-	@if [ -f /tmp/gpu_drivers.txt ]; then \
-		echo "Installing GPU drivers via pacman..."; \
-		driver_packages=$$(cat /tmp/gpu_drivers.txt | grep -v '^#' | tr '\n' ' '); \
-		if [ -n "$$driver_packages" ]; then \
-			echo "Attempting to install: $$driver_packages"; \
-			if sudo pacman -S --noconfirm --needed $$driver_packages; then \
-				echo "✅ GPU drivers installed successfully"; \
-			else \
-				echo "⚠️  GPU driver installation failed, continuing with generic drivers"; \
-				sudo pacman -S --noconfirm --needed xf86-video-vesa || echo "⚠️  Even generic driver install failed"; \
-			fi; \
-		fi; \
-	fi
-	@# Install yay first if not present
-	@if ! command -v yay >/dev/null 2>&1; then \
-		echo "Installing yay AUR helper..."; \
-		git clone https://aur.archlinux.org/yay.git /tmp/yay || exit 1; \
-		cd /tmp/yay && makepkg -si --noconfirm || exit 1; \
-		rm -rf /tmp/yay; \
-	fi
-	@# Run package restore script
+	@# Run package restore script (handles yay installation automatically)
 	cd $(DOTFILES_DIR)/packages && ./arch_package_backup_and_restore.sh restore || exit 1
 	@echo "=== Package installation completed ==="
-
-# Setup Neovim configuration
-setup-nvim:
-	@echo "=== Setting up Neovim configuration ==="
-	@if [ -d "$(NVIM_CONFIG_DIR)" ]; then \
-		echo "Removing existing Neovim configuration..."; \
-		rm -rf $(NVIM_CONFIG_DIR); \
-	fi
-	mkdir -p "$(NVIM_CONFIG_DIR)" || exit 1
-	git clone $(NVIM_REPO) "$(NVIM_CONFIG_DIR)" || exit 1
-	@echo "=== Neovim configuration completed ==="
 
 # Setup Oh My Zsh plugins and themes
 setup-ohmyzsh-plugins:
@@ -175,27 +104,6 @@ change-shell:
 	fi
 	@echo "=== Shell change completed ==="
 
-# Setup fzf shell integration after stowing
-setup-fzf:
-	@echo "=== Setting up fzf integration ==="
-	@# Ensure .zshrc exists (stowed) and add fzf
-	@if [ -f "$(HOME)/.zshrc" ]; then \
-		if [ -f "/usr/share/fzf/key-bindings.zsh" ] && [ -f "/usr/share/fzf/completion.zsh" ]; then \
-			if ! grep -q "source /usr/share/fzf/key-bindings.zsh" "$(HOME)/.zshrc"; then \
-				echo "source /usr/share/fzf/key-bindings.zsh" >> "$(HOME)/.zshrc"; \
-			fi; \
-			if ! grep -q "source /usr/share/fzf/completion.zsh" "$(HOME)/.zshrc"; then \
-				echo "source /usr/share/fzf/completion.zsh" >> "$(HOME)/.zshrc"; \
-			fi; \
-			echo "✅ FZF integration added to .zshrc"; \
-		else \
-			echo "⚠️  FZF shell files not found in /usr/share/fzf/"; \
-		fi; \
-	else \
-		echo "⚠️  .zshrc not found - run cleanup-and-stow first"; \
-	fi
-	@echo "=== FZF integration completed ==="
-
 # Combined cleanup and stow with backup protection
 cleanup-and-stow:
 	@echo "=== Clean configuration setup ==="
@@ -237,27 +145,6 @@ cleanup-and-stow:
 	@echo "=== Cleanup and stowing completed ==="
 	@$(MAKE) -f $(firstword $(MAKEFILE_LIST)) verify-configs
 
-# Verify stowed symlinks
-verify-stow-links:
-	@echo "=== Verifying stowed symlinks ==="
-	@# Check each expected symlink
-	@success=0; total=0; \
-	for dir in $(STOW_DIRS); do \
-		if [ -d "$(DOTFILES_DIR)/$$dir" ]; then \
-			echo "Verifying $$dir symlinks..."; \
-			find "$(DOTFILES_DIR)/$$dir" -type f -exec test -L "$(HOME)/{}" \; -print 2>/dev/null | wc -l | read -r links && \
-			success=$$((success + links)); \
-			find "$(DOTFILES_DIR)/$$dir" -type f | wc -l | read -r files && \
-			total=$$((total + files)); \
-		fi; \
-	done; \
-	if [ $$success -eq $$total ]; then \
-		echo "✅ All $$success/$$total files properly symlinked"; \
-	else \
-		echo "❌ Only $$success/$$total files symlinked correctly"; \
-		exit 1; \
-	fi
-
 # Verify critical configurations
 verify-configs:
 	@echo "=== Verifying critical configurations ==="
@@ -288,40 +175,6 @@ verify-configs:
 	fi
 	@echo "✅ All critical configurations verified"
 
-# Setup Bluetooth daemon for Wayland
-setup-bluetooth:
-	@echo "=== Setting up Bluetooth daemon ==="
-	@# Install Bluetooth packages if needed
-	@if ! pacman -Q bluez >/dev/null 2>&1; then \
-		echo "Installing Bluetooth packages..."; \
-		sudo pacman -S --noconfirm bluez bluez-utils || exit 1; \
-	fi
-	@# Enable Bluetooth service
-	sudo systemctl enable --now bluetooth || exit 1
-	@# Install and enable PipeWire for Wayland Bluetooth support
-	@if ! command -v pipewire >/dev/null 2>&1 || ! pacman -Q pipewire >/dev/null 2>&1; then \
-		echo "Installing PipeWire for Bluetooth support..."; \
-		sudo pacman -S --noconfirm pipewire pipewire-audio pipewire-pulse wireplumber || exit 1; \
-	fi
-	@# Enable PipeWire services (only if they exist)
-	@systemctl --user enable --now pipewire pipewire-pulse wireplumber 2>/dev/null || echo "⚠️  Some PipeWire services may not be available"
-	@# Verify Bluetooth daemon is running
-	@if sudo systemctl is-active --quiet bluetooth 2>/dev/null; then \
-		echo "✅ Bluetooth daemon is running"; \
-	else \
-		echo "❌ Bluetooth daemon failed to start"; \
-		exit 1; \
-	fi
-	@echo "=== Bluetooth setup completed ==="
-
-# Setup Hyprland environment with TTY autostart
-install-hyprland:
-	@echo "=== Setting up Hyprland environment ==="
-	sudo pacman -Syu --noconfirm || exit 1
-	@echo "=== Hyprland environment ready for TTY autostart ==="
-	@echo "Note: Hyprland will auto-start on TTY1-3 login"
-	@echo "      Set NO_AUTOSTART=1 to disable autostart temporarily"
-
 # Final setup verification
 verify-complete-setup:
 	@echo "=== Final setup verification ==="
@@ -339,20 +192,11 @@ verify-complete-setup:
 			echo "❌ $$cmd not found"; \
 		fi; \
 	done
-	@# Verify Bluetooth daemon
-	@if sudo systemctl is-active --quiet bluetooth 2>/dev/null; then \
-		echo "✅ Bluetooth daemon running"; \
-	else \
-		echo "⚠️  Bluetooth daemon not active (run 'make setup-bluetooth')"; \
-	fi
 	@echo "=== Verification completed ==="
 
 # Clean up installation artifacts
 clean:
 	@echo "=== Cleaning up ==="
-	@if [ -d "$(DOTFILES_DIR)" ]; then \
-		read -p "Remove dotfiles directory? [y/N] " confirm && [ "$$confirm" = "y" ] && rm -rf $(DOTFILES_DIR); \
-	fi
 	@if [ -d "/tmp/yay" ]; then \
 		rm -rf /tmp/yay; \
 	fi
@@ -360,42 +204,31 @@ clean:
 
 # Display help information
 help:
-	@echo "Manolo's Ultimate Lightweight Arch Linux Setup (Enhanced)"
+	@echo "Manolo's Simplified Arch Linux Dotfiles Setup"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  all                    - Run complete clean slate installation"
-	@echo "  clone-dotfiles         - Clone dotfiles repository"
-	@echo "  detect-hardware        - Detect GPUs and prepare drivers"
-	@echo "  install-packages       - Install packages from dotfiles with GPU drivers"
-	@echo "  setup-nvim            - Setup Neovim configuration"
-	@echo "  install-ohmyzsh        - Install Oh My Zsh manually (no installer conflicts)"
-	@echo "  setup-ohmyzsh-plugins - Setup Oh My Zsh plugins and themes"
-	@echo "  setup-fzf              - Setup fzf shell integration"
+	@echo "  all                    - Run complete dotfile setup"
+	@echo "  check-dotfiles         - Verify dotfiles directory exists locally"
+	@echo "  install-packages       - Install packages from restore script"
+	@echo "  install-ohmyzsh        - Install Oh My Zsh manually"
+	@echo "  setup-ohmyzsh-plugins  - Setup Oh My Zsh plugins and themes"
 	@echo "  change-shell           - Change default shell to zsh"
 	@echo "  cleanup-and-stow       - Clean configs and stow all dotfiles"
-	@echo "  verify-configs        - Verify critical configurations after stowing"
-	@echo "  setup-bluetooth         - Setup Bluetooth daemon for Wayland"
-	@echo "  install-hyprland        - Setup Hyprland environment with TTY autostart"
-	@echo "  verify-complete-setup    - Verify complete installation"
+	@echo "  verify-configs         - Verify critical configurations after stowing"
+	@echo "  verify-complete-setup   - Verify complete setup"
 	@echo "  clean                  - Clean up installation artifacts"
 	@echo "  help                   - Display this help message"
 	@echo ""
 	@echo "Usage:"
-	@echo "  make all                           # Complete installation"
-	@echo "  make detect-hardware                # Detect GPU hardware only"
-	@echo "  make install-packages               # Install packages with GPU drivers only"
+	@echo "  make all                           # Complete setup"
+	@echo "  make install-packages               # Install packages only"
 	@echo "  make setup-ohmyzsh-plugins         # Setup Oh My Zsh plugins only"
-	@echo "  make setup-fzf                      # Setup fzf integration only"
-	@echo "  make cleanup-and-stow               # Clean configs and stow all dotfiles"
-	@echo "  make verify-configs                # Verify critical configs only"
-	@echo "  make verify-complete-setup           # Verify complete setup"
+	@echo "  make cleanup-and-stow              # Clean configs and stow dotfiles"
+	@echo "  make verify-complete-setup         # Verify complete setup"
 	@echo ""
 	@echo "After installation:"
-	@echo "  - GPU drivers automatically installed based on detected hardware"
-	@echo "  - Hyprland auto-starts on TTY1-3 login (no display manager)"
-	@echo "  - Set NO_AUTOSTART=1 to temporarily disable autostart"
-	@echo "  - SSH sessions are safe (no autostart in SSH)"
-	@echo "  - Bluetooth is ready for device pairing"
-	@echo "  - All configurations are from your dotfiles repository"
-	@echo "  - System backups created in /etc/X11/xinitrc.backup.* if needed"
+	@echo "  - Packages restored from existing pkglist.txt and aurlist.txt"
+	@echo "  - Oh My Zsh configured with Powerlevel10k and essential plugins"
+	@echo "  - Shell changed to zsh"
+	@echo "  - All configurations stowed from your local dotfiles"
 	@echo "  - User backups created with .backup.* suffix if needed"
