@@ -168,11 +168,7 @@ verify-configs:
 		echo "❌ Waybar config not found after stowing"; \
 		exit 1; \
 	fi
-	@# Check Neovim config
-	@if [ ! -f "$(NVIM_CONFIG_DIR)/init.lua" ]; then \
-		echo "❌ Neovim config not found after stowing"; \
-		exit 1; \
-	fi
+	@
 	@echo "✅ All critical configurations verified"
 
 # Final setup verification
@@ -185,7 +181,7 @@ verify-complete-setup:
 		echo "✅ Shell properly set to zsh"; \
 	fi
 	@# Verify key tools
-	@for cmd in fzf git nvim stow yay zoxide; do \
+	@for cmd in fzf git stow yay zoxide; do \
 		if command -v $$cmd >/dev/null 2>&1; then \
 			echo "✅ $$cmd available"; \
 		else \
