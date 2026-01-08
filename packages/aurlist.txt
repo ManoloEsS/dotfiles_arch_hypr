@@ -4,12 +4,10 @@ epson-inkjet-printer-escpr
 nerdfetch
 postman-bin
 quivira
-rofi-lbonn-wayland-git
 ttf-symbola
-ventoy
 wezterm-git
 wl-gammarelay
-yay
 zen-browser-bin
 zsh-completions-git
 zsh-syntax-highlighting-git
+zsh-theme-powerlevel10k-git

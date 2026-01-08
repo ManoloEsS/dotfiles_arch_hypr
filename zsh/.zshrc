@@ -215,7 +215,7 @@ alias tmc='/home/tlaloch/mooc/tmc-cli-rust-x86_64-unknown-linux-gnu-v1.1.2'
 export TMC_LANGS_CONFIG_DIR='/home/tlaloch/tmc-config'
 fpath=(/home/tlaloch/.local/share/tmc-autocomplete/_tmc  $fpath)
 compdef _tmc tmc
-source ~/powerlevel10k/powerlevel10k.zsh-theme
+# source ~/powerlevel10k/powerlevel10k.zsh-theme
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
@@ -224,3 +224,7 @@ source ~/powerlevel10k/powerlevel10k.zsh-theme
 [[ ! -f ~/dotfiles/pl10k/.p10k.zsh ]] || source ~/dotfiles/pl10k/.p10k.zsh
 export PATH=$PATH:$HOME/go/bin
 export PATH=$PATH:$HOME/.local/opt/go/bin
+source /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme
+
+# opencode
+export PATH=/home/tlaloch/.opencode/bin:$PATH

@@ -1,0 +1,354 @@
+# Makefile for Ultimate Lightweight Arch Linux Setup
+# This Makefile automates a clean slate Arch Linux installation with Hyprland
+
+# Variables
+DOTFILES_DIR := $(HOME)/dotfiles_arch_hypr
+NVIM_CONFIG_DIR := $(XDG_CONFIG_HOME:-$(HOME)/.config)/nvim
+STOW_DIRS := fontconfig hypr pl10k tmux waybar wezterm wofi zsh
+DOTFILES_REPO := https://github.com/ManoloEsS/dotfiles_arch_hypr.git
+NVIM_REPO := https://github.com/ManoloEsS/kickstartmanolo.nvim.git
+
+# Phony targets
+.PHONY: all clone-dotfiles verify-dotfiles-exist cleanup-existing-configs install-packages setup-nvim install-ohmyzsh setup-ohmyzsh-plugins change-shell stow-configs setup-bluetooth install-hyprland verify-stow-links verify-complete-setup clean help
+
+# Default target - clean slate Arch/Hyprland setup
+all: clone-dotfiles install-packages setup-nvim install-ohmyzsh setup-ohmyzsh-plugins setup-fzf change-shell cleanup-and-stow setup-bluetooth install-hyprland verify-complete-setup
+	@echo "=== Clean slate Arch/Hyprland installation completed ==="
+	@echo "Use 'startx' to launch desktop"
+	@echo "Bluetooth is ready for device pairing"
+
+# Clone dotfiles repository
+clone-dotfiles:
+	@echo "=== Cloning dotfiles repository ==="
+	@if [ -d "$(DOTFILES_DIR)" ]; then \
+		echo "Dotfiles directory already exists, removing..."; \
+		rm -rf $(DOTFILES_DIR); \
+	fi
+	mkdir -p $(DOTFILES_DIR) || exit 1
+	wget -O - https://github.com/ManoloEsS/dotfiles_arch_hypr/archive/main.tar.gz | tar -xz -C $(DOTFILES_DIR)/.. --strip-components=1 || exit 1
+	chmod +x $(DOTFILES_DIR)/packages/*.sh || exit 1
+	@echo "=== Dotfiles cloned successfully ==="
+
+# Verify dotfiles repository structure
+verify-dotfiles-exist:
+	@echo "=== Verifying dotfiles repository structure ==="
+	@if [ ! -d "$(DOTFILES_DIR)" ]; then \
+		echo "ERROR: Dotfiles directory not found at $(DOTFILES_DIR)"; \
+		exit 1; \
+	fi
+	@for dir in $(STOW_DIRS); do \
+		if [ ! -d "$(DOTFILES_DIR)/$$dir" ]; then \
+			echo "ERROR: Target directory $$dir not found in dotfiles"; \
+			exit 1; \
+		fi; \
+	done
+	@if [ ! -d "$(DOTFILES_DIR)/nvim" ]; then \
+		echo "ERROR: Neovim target directory not found"; \
+		exit 1; \
+	fi
+	@echo "✅ All required dotfiles directories verified"
+
+# Clean slate: Remove all conflicting configurations
+cleanup-existing-configs:
+	@echo "=== Clean slate: Removing all conflicting configurations ==="
+	@# Safety: Verify dotfiles exist before cleanup
+	@$(MAKE) verify-dotfiles-exist
+	@# Remove Oh My Zsh artifacts with confirmation they exist
+	@if [ -d "$(HOME)/.oh-my-zsh" ]; then \
+		echo "Removing existing Oh My Zsh..."; \
+		rm -rf "$(HOME)/.oh-my-zsh"; \
+	fi
+	@rm -f "$(HOME)/.zshrc" "$(HOME)/.zshrc*" 2>/dev/null || true
+	@# Remove all target config directories with logging
+	@for dir in $(STOW_DIRS); do \
+		if [ -d "$(HOME)/.config/$$dir" ]; then \
+			echo "Removing .config/$$dir..."; \
+			rm -rf "$(HOME)/.config/$$dir"; \
+		fi; \
+		if [ -d "$(HOME)/.$$dir" ]; then \
+			echo "Removing .$$dir..."; \
+			rm -rf "$(HOME)/.$$dir"; \
+		fi; \
+	done
+	@# Remove existing Neovim config
+	@if [ -d "$(NVIM_CONFIG_DIR)" ]; then \
+		echo "Removing existing Neovim config..."; \
+		rm -rf "$(NVIM_CONFIG_DIR)"; \
+	fi
+	@# Cleanup any remaining broken symlinks
+	@echo "Cleaning broken symlinks..."
+	@find "$(HOME)/.config" -maxdepth 2 -type l -exec test ! -e {} \; -delete 2>/dev/null || true
+	@echo "=== Clean slate completed ==="
+
+# Install packages using the restore script
+install-packages:
+	@echo "=== Installing packages ==="
+	@# Install yay first if not present
+	@if ! command -v yay >/dev/null 2>&1; then \
+		echo "Installing yay AUR helper..."; \
+		git clone https://aur.archlinux.org/yay.git /tmp/yay || exit 1; \
+		cd /tmp/yay && makepkg -si --noconfirm || exit 1; \
+		rm -rf /tmp/yay; \
+	fi
+	@# Run package restore script
+	cd $(DOTFILES_DIR)/packages && ./arch_package_backup_and_restore.sh restore || exit 1
+	@echo "=== Package installation completed ==="
+
+# Setup Neovim configuration
+setup-nvim:
+	@echo "=== Setting up Neovim configuration ==="
+	@if [ -d "$(NVIM_CONFIG_DIR)" ]; then \
+		echo "Removing existing Neovim configuration..."; \
+		rm -rf $(NVIM_CONFIG_DIR); \
+	fi
+	mkdir -p "$(NVIM_CONFIG_DIR)" || exit 1
+	git clone $(NVIM_REPO) "$(NVIM_CONFIG_DIR)" || exit 1
+	@echo "=== Neovim configuration completed ==="
+
+# Setup Oh My Zsh plugins and themes
+setup-ohmyzsh-plugins:
+	@echo "=== Setting up Oh My Zsh plugins and themes ==="
+	@# Ensure custom directories exist
+	mkdir -p "$(HOME)/.oh-my-zsh/custom/plugins" || exit 1
+	mkdir -p "$(HOME)/.oh-my-zsh/custom/themes" || exit 1
+	@# Install zsh-syntax-highlighting plugin
+	@if [ ! -d "$(HOME)/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting" ]; then \
+		echo "Installing zsh-syntax-highlighting plugin..."; \
+		git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git "$(HOME)/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting" || exit 1; \
+	fi
+	@# Install zsh-autosuggestions plugin
+	@if [ ! -d "$(HOME)/.oh-my-zsh/custom/plugins/zsh-autosuggestions" ]; then \
+		echo "Installing zsh-autosuggestions plugin..."; \
+		git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions.git "$(HOME)/.oh-my-zsh/custom/plugins/zsh-autosuggestions" || exit 1; \
+	fi
+	@# Install zsh-completions plugin
+	@if [ ! -d "$(HOME)/.oh-my-zsh/custom/plugins/zsh-completions" ]; then \
+		echo "Installing zsh-completions plugin..."; \
+		git clone --depth=1 https://github.com/zsh-users/zsh-completions.git "$(HOME)/.oh-my-zsh/custom/plugins/zsh-completions" || exit 1; \
+	fi
+	@# Install fzf-tab plugin
+	@if [ ! -d "$(HOME)/.oh-my-zsh/custom/plugins/fzf-tab" ]; then \
+		echo "Installing fzf-tab plugin..."; \
+		git clone --depth=1 https://github.com/Aloxaf/fzf-tab.git "$(HOME)/.oh-my-zsh/custom/plugins/fzf-tab" || exit 1; \
+	fi
+	@# Install Powerlevel10k theme
+	@if [ ! -d "$(HOME)/.oh-my-zsh/custom/themes/powerlevel10k" ]; then \
+		echo "Installing Powerlevel10k theme..."; \
+		git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$(HOME)/.oh-my-zsh/custom/themes/powerlevel10k" || exit 1; \
+	fi
+	@echo "=== Oh My Zsh plugins and themes setup completed ==="
+
+# Install Oh My Zsh manually (avoid installer config conflicts)
+install-ohmyzsh:
+	@echo "=== Installing Oh My Zsh manually ==="
+	@# Backup existing configs before cleanup
+	@if [ -f "$(HOME)/.zshrc" ]; then \
+		cp "$(HOME)/.zshrc" "$(HOME)/.zshrc.backup.$(shell date +%Y%m%d_%H%M%S)" && \
+		echo "Backed up existing .zshrc"; \
+	fi
+	@if [ -f "$(HOME)/.bashrc" ]; then \
+		cp "$(HOME)/.bashrc" "$(HOME)/.bashrc.backup.$(shell date +%Y%m%d_%H%M%S)" && \
+		echo "Backed up existing .bashrc"; \
+	fi
+	@# Clean and clone Oh My Zsh
+	@rm -rf "$(HOME)/.oh-my-zsh" "$(HOME)/.zshrc" 2>/dev/null || true
+	git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git "$(HOME)/.oh-my-zsh" || exit 1
+	@echo "=== Manual Oh My Zsh installation completed ==="
+
+# Change default shell to zsh
+change-shell:
+	@echo "=== Changing default shell to zsh ==="
+	@if command -v zsh >/dev/null 2>&1; then \
+		if [ "$$SHELL" != "$(which zsh)" ]; then \
+			echo $(which zsh) | sudo chsh $$USER || exit 1; \
+			echo "Default shell changed to zsh"; \
+		else \
+			echo "Default shell is already zsh"; \
+		fi; \
+	else \
+		echo "ERROR: zsh is not installed"; \
+		exit 1; \
+	fi
+	@echo "=== Shell change completed ==="
+
+# Setup fzf shell integration after stowing
+setup-fzf:
+	@echo "=== Setting up fzf integration ==="
+	@# Ensure .zshrc exists (stowed) and add fzf
+	@if [ -f "$(HOME)/.zshrc" ]; then \
+		if [ -f "/usr/share/fzf/key-bindings.zsh" ] && [ -f "/usr/share/fzf/completion.zsh" ]; then \
+			echo "source /usr/share/fzf/key-bindings.zsh" >> "$(HOME)/.zshrc" && \
+			echo "source /usr/share/fzf/completion.zsh" >> "$(HOME)/.zshrc" && \
+			echo "✅ FZF integration added to .zshrc"; \
+		else \
+			echo "⚠️  FZF shell files not found in /usr/share/fzf/"; \
+		fi; \
+	else \
+		echo "⚠️  .zshrc not found - run stow-configs first"; \
+	fi
+	@echo "=== FZF integration completed ==="
+
+# Combined cleanup and stow with backup protection
+cleanup-and-stow:
+	@echo "=== Final cleanup and stowing ==="
+	@# Backup system configs if they exist
+	@if [ -f "/etc/X11/xinitrc" ]; then \
+		cp "/etc/X11/xinitrc" "/etc/X11/xinitrc.backup.$(shell date +%Y%m%d_%H%M%S)" && \
+		echo "Backed up system xinitrc"; \
+	fi
+	@if [ -f "$(HOME)/.bashrc" ]; then \
+		cp "$(HOME)/.bashrc" "$(HOME)/.bashrc.backup.$(shell date +%Y%m%d_%H%M%S)" && \
+		echo "Backed up user bashrc"; \
+	fi
+	@# Remove Oh My Zsh configs created by installer (not manual)
+	@rm -rf "$(HOME)/.oh-my-zsh" "$(HOME)/.zshrc" 2>/dev/null || true
+	@# Remove all target config directories
+	@for dir in $(STOW_DIRS); do \
+		if [ -d "$(HOME)/.config/$$dir" ]; then \
+			echo "Removing .config/$$dir..."; \
+			rm -rf "$(HOME)/.config/$$dir"; \
+		fi; \
+		if [ -d "$(HOME)/.$$dir" ]; then \
+			echo "Removing .$$dir..."; \
+			rm -rf "$(HOME)/.$$dir"; \
+		fi; \
+	done
+	@# Remove existing Neovim config
+	@if [ -d "$(NVIM_CONFIG_DIR)" ]; then \
+		rm -rf "$(NVIM_CONFIG_DIR)"; \
+	fi
+	@# Cleanup any remaining broken symlinks
+	@echo "Cleaning broken symlinks..."
+	@find "$(HOME)/.config" -maxdepth 2 -type l -exec test ! -e {} \; -delete 2>/dev/null || true
+	@# Now stow everything cleanly
+	cd $(DOTFILES_DIR) && \
+	for dir in $(STOW_DIRS); do \
+		if [ -d "$$dir" ]; then \
+			echo "Stowing $$dir..."; \
+			stow -d $(DOTFILES_DIR) -t $(HOME) $$dir || exit 1; \
+			echo "✅ Successfully stowed $$dir"; \
+		fi; \
+	done
+	@echo "=== Cleanup and stowing completed ==="
+	@$(MAKE) verify-stow-links
+
+# Verify stowed symlinks
+verify-stow-links:
+	@echo "=== Verifying stowed symlinks ==="
+	@# Check each expected symlink
+	@success=0; total=0; \
+	for dir in $(STOW_DIRS); do \
+		if [ -d "$(DOTFILES_DIR)/$$dir" ]; then \
+			echo "Verifying $$dir symlinks..."; \
+			find "$(DOTFILES_DIR)/$$dir" -type f -exec test -L "$(HOME)/{}" \; -print 2>/dev/null | wc -l | read -r links && \
+			success=$$((success + links)); \
+			find "$(DOTFILES_DIR)/$$dir" -type f | wc -l | read -r files && \
+			total=$$((total + files)); \
+		fi; \
+	done; \
+	if [ $$success -eq $$total ]; then \
+		echo "✅ All $$success/$$total files properly symlinked"; \
+	else \
+		echo "❌ Only $$success/$$total files symlinked correctly"; \
+		exit 1; \
+	fi
+
+# Setup Bluetooth daemon for Wayland
+setup-bluetooth:
+	@echo "=== Setting up Bluetooth daemon ==="
+	@# Enable Bluetooth service
+	sudo systemctl enable --now bluetooth || exit 1
+	@# Install and enable PipeWire for Wayland Bluetooth support
+	@if ! command -v pipewire >/dev/null 2>&1; then \
+		echo "Installing PipeWire for Bluetooth support..."; \
+		sudo pacman -S --noconfirm pipewire pipewire-audio pipewire-pulse wireplumber || exit 1; \
+	fi
+	@# Enable PipeWire services
+	sudo systemctl enable --now pipewire pipewire-pulse wireplumber || exit 1
+	@# Verify Bluetooth daemon is running
+	@if systemctl is-active --quiet bluetooth; then \
+		echo "✅ Bluetooth daemon is running"; \
+	else \
+		echo "❌ Bluetooth daemon failed to start"; \
+		exit 1; \
+	fi
+	@echo "=== Bluetooth setup completed ==="
+
+# Setup Hyprland environment (manual startx)
+install-hyprland:
+	@echo "=== Setting up Hyprland environment ==="
+	sudo pacman -Syu --noconfirm || exit 1
+	@echo "=== Hyprland environment ready for manual startx ==="
+	@echo "Note: Use 'startx' to launch desktop after setup completes"
+
+# Final setup verification
+verify-complete-setup:
+	@echo "=== Final setup verification ==="
+	@# Verify shell
+	@if [ "$$SHELL" != "$(which zsh)" ]; then \
+		echo "⚠️  Warning: Shell not changed to zsh yet"; \
+	else \
+		echo "✅ Shell properly set to zsh"; \
+	fi
+	@# Verify key tools
+	@for cmd in fzf git nvim stow yay zoxide; do \
+		if command -v $$cmd >/dev/null 2>&1; then \
+			echo "✅ $$cmd available"; \
+		else \
+			echo "❌ $$cmd not found"; \
+		fi; \
+	done
+	@# Verify Bluetooth daemon
+	@if systemctl is-active --quiet bluetooth; then \
+		echo "✅ Bluetooth daemon running"; \
+	else \
+		echo "⚠️  Bluetooth daemon not active (run 'make setup-bluetooth')"; \
+	fi
+	@echo "=== Verification completed ==="
+
+# Clean up installation artifacts
+clean:
+	@echo "=== Cleaning up ==="
+	@if [ -d "$(DOTFILES_DIR)" ]; then \
+		read -p "Remove dotfiles directory? [y/N] " confirm && [ "$$confirm" = "y" ] && rm -rf $(DOTFILES_DIR); \
+	fi
+	@if [ -d "/tmp/yay" ]; then \
+		rm -rf /tmp/yay; \
+	fi
+	@echo "=== Cleanup completed ==="
+
+# Display help information
+help:
+	@echo "Manolo's Ultimate Lightweight Arch Linux Setup"
+	@echo ""
+	@echo "Available targets:"
+	@echo "  all                    - Run complete clean slate installation"
+	@echo "  clone-dotfiles         - Clone dotfiles repository"
+	@echo "  verify-dotfiles-exist   - Verify dotfiles structure"
+	@echo "  install-packages        - Install packages from dotfiles"
+	@echo "  setup-nvim            - Setup Neovim configuration"
+	@echo "  install-ohmyzsh        - Install Oh My Zsh manually (no installer conflicts)"
+	@echo "  setup-ohmyzsh-plugins - Setup Oh My Zsh plugins and themes"
+	@echo "  setup-fzf              - Setup fzf shell integration"
+	@echo "  change-shell           - Change default shell to zsh"
+	@echo "  cleanup-and-stow       - Clean configs and stow all dotfiles"
+	@echo "  setup-bluetooth         - Setup Bluetooth daemon for Wayland"
+	@echo "  install-hyprland        - Setup Hyprland environment (manual startx)"
+	@echo "  verify-complete-setup    - Verify complete installation"
+	@echo "  clean                  - Clean up installation artifacts"
+	@echo "  help                   - Display this help message"
+	@echo ""
+	@echo "Usage:"
+	@echo "  make all                           # Complete installation"
+	@echo "  make install-packages                # Install packages only"
+	@echo "  make setup-ohmyzsh-plugins         # Setup Oh My Zsh plugins only"
+	@echo "  make setup-fzf                      # Setup fzf integration only"
+	@echo "  make cleanup-and-stow               # Clean configs and stow all dotfiles"
+	@echo "  make verify-complete-setup           # Verify complete setup"
+	@echo ""
+	@echo "After installation:"
+	@echo "  - Use 'startx' to launch Hyprland desktop"
+	@echo "  - Bluetooth is ready for device pairing"
+	@echo "  - All configurations are from your dotfiles repository"
+	@echo "  - System backups created in /etc/X11/xinitrc.backup.* if needed"
+	@echo "  - User backups created with .backup.* suffix if needed"
