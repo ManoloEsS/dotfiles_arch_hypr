@@ -1,183 +1,99 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 PKGLIST="pkglist.txt"
 AURLIST="aurlist.txt"
 
-# Hardware-specific packages to skip
 SKIP_PKGS=(
-  # Kernels
-  "linux" "linux-lts" "linux-zen" "linux-hardened"
-  "virtualbox-host-modules-arch"
-
-  # Firmware
-  "linux-firmware"
-
-  # NVIDIA
-  "nvidia" "nvidia-dkms" "nvidia-utils" "nvidia-settings" "nvidia-lts"
-
-  # AMD
-  "xf86-video-amdgpu" "vulkan-radeon"
-
-  # Intel
-  "xf86-video-intel" "vulkan-intel"
-
-  # Other GPUs
-  "xf86-video-nouveau"
-
-  # Microcode
-  "intel-ucode" "amd-ucode"
-
-  # Bootloaders
-  "grub" "systemd-boot-pacman-hook" "refind" "lilo"
-
-  # AUR helpers (we only keep yay)
-  "paru" "paru-debug"
+  linux linux-lts linux-zen linux-hardened
+  virtualbox-host-modules-arch
+  linux-firmware
+  nvidia nvidia-dkms nvidia-utils nvidia-settings nvidia-lts
+  xf86-video-amdgpu vulkan-radeon
+  xf86-video-intel vulkan-intel
+  xf86-video-nouveau
+  intel-ucode amd-ucode
+  grub systemd-boot-pacman-hook refind lilo
+  paru paru-debug
 )
 
 backup() {
-    echo "📦 Backing up package lists..."
+  echo "📦 Backing up package lists..."
 
-    # Explicitly installed packages (repo + AUR)
-    pacman -Qqe > "$PKGLIST".all
+  pacman -Qqe > "$PKGLIST.all"
+  pacman -Qm  > "$AURLIST.all"
 
-    # Installed AUR packages
-    pacman -Qm > "$AURLIST".all
+  BASE_PKGS="$(comm -12 \
+    <(pacman -Qq 2>/dev/null | sort) \
+    <(pacman -Sgq base base-devel 2>/dev/null | sort) || true)"
 
-    # Filter base + base-devel packages
-    BASE_PKGS=$(comm -12 <(pacman -Qq | sort) <(pacman -Sgq base base-devel | sort))
+  {
+    printf "%s\n" $BASE_PKGS
+    printf "%s\n" "${SKIP_PKGS[@]}"
+  } | sort -u > /tmp/skip_all.txt
 
-    # Filter repo packages: remove base, skip list, AUR, and *-debug
-    grep -vxFf <(printf "%s\n" $BASE_PKGS "${SKIP_PKGS[@]}") "$PKGLIST".all \
-      | grep -vxFf <(pacman -Qm | awk '{print $1}') \
-      | grep -v -- '-debug$' \
-      > "$PKGLIST"
+  grep -vxFf /tmp/skip_all.txt "$PKGLIST.all" \
+    | grep -vxFf <(awk '{print $1}' "$AURLIST.all") \
+    | grep -v -- '-debug$' \
+    > "$PKGLIST"
 
-    # Filter AUR packages: remove helpers and *-debug
-    awk '{print $1}' "$AURLIST".all \
-      | grep -v -- '-debug$' \
-      | grep -vE '^(paru|yay-debug)$' \
-      > "$AURLIST"
+  awk '{print $1}' "$AURLIST.all" \
+    | grep -v -- '-debug$' \
+    | grep -vE '^(paru|yay-debug)$' \
+    > "$AURLIST"
 
-    # Find skipped ones
-    comm -12 <(sort "$PKGLIST".all) <(printf "%s\n" $BASE_PKGS "${SKIP_PKGS[@]}" | sort -u) > skipped.txt
+  rm "$PKGLIST.all" "$AURLIST.all" /tmp/skip_all.txt
 
-    rm "$PKGLIST".all "$AURLIST".all
-
-    echo "✅ Package lists saved:"
-    echo "  - $(wc -l < "$PKGLIST") pacman packages (repo only) → $PKGLIST"
-    echo "  - $(wc -l < "$AURLIST") AUR packages                → $AURLIST"
-
-    if [[ -s skipped.txt ]]; then
-        echo "⚠️  Skipped packages:"
-        cat skipped.txt
-    else
-        echo "✅ No packages skipped."
-        rm skipped.txt
-    fi
+  echo "✅ Saved:"
+  echo "  - $PKGLIST"
+  echo "  - $AURLIST"
 }
 
 restore() {
-    local dryrun="${1:-}"
+  local dryrun="${1:-}"
 
+  if [[ "$dryrun" != "--dry-run" ]]; then
+    sudo pacman -Syu --noconfirm
+    sudo pacman -S --needed --noconfirm base-devel git
+  fi
+
+  if [[ -f "$PKGLIST" ]]; then
+    sed '/^[[:space:]]*$/d' "$PKGLIST" > "$PKGLIST.clean"
     if [[ "$dryrun" == "--dry-run" ]]; then
-        echo "🔍 Dry run: packages that would be installed"
+      cat "$PKGLIST.clean"
     else
-        echo "🔄 Restoring packages..."
-        echo "📡 Updating package databases..."
-        sudo pacman -Syu --noconfirm || {
-            echo "❌ Failed to update package databases"
-            return 1
-        }
-        
-        echo "🔧 Installing essential build tools..."
-        sudo pacman -S --needed --noconfirm base-devel git || {
-            echo "❌ Failed to install base development tools"
-            return 1
-        }
+      sudo pacman -S --needed --noconfirm - < "$PKGLIST.clean"
     fi
+    rm "$PKGLIST.clean"
+  fi
 
-    if [[ -f "$PKGLIST" ]]; then
-        echo "📥 Pacman packages:"
-        # Clean up package list first
-        sed '/^[[:space:]]*$/d' "$PKGLIST" > "${PKGLIST}.clean"
-        
-        if [[ "$dryrun" == "--dry-run" ]]; then
-            echo "Packages that would be installed:"
-            cat "${PKGLIST}.clean" || true
-        else
-            if [[ -s "${PKGLIST}.clean" ]]; then
-                echo "Installing $(wc -l < "${PKGLIST}.clean") packages..."
-                sudo pacman -S --needed $(cat "${PKGLIST}.clean") || {
-                    echo "❌ Some pacman packages failed to install"
-                    return 1
-                }
-            else
-                echo "⚠️ No valid packages found in $PKGLIST"
-            fi
-        fi
-        rm -f "${PKGLIST}.clean"
-    fi
+  if ! command -v yay &>/dev/null && [[ "$dryrun" != "--dry-run" ]]; then
+    tmpdir="$(mktemp -d)"
+    git clone https://aur.archlinux.org/yay.git "$tmpdir"
+    (cd "$tmpdir" && makepkg -si --noconfirm)
+    rm -rf "$tmpdir"
+  fi
 
-    if ! command -v yay &>/dev/null; then
-        if [[ "$dryrun" == "--dry-run" ]]; then
-            echo "📥 Would install yay (AUR helper)"
-        else
-            echo "📥 Installing yay (AUR helper)..."
-            tmpdir=$(mktemp -d)
-            if git clone https://aur.archlinux.org/yay.git "$tmpdir" 2>/dev/null; then
-                (cd "$tmpdir" && makepkg -si --noconfirm) || {
-                    echo "❌ Failed to build and install yay"
-                    rm -rf "$tmpdir"
-                    return 1
-                }
-                rm -rf "$tmpdir"
-                echo "✅ yay installed successfully"
-            else
-                echo "❌ Failed to clone yay repository"
-                rm -rf "$tmpdir"
-                return 1
-            fi
-        fi
-    fi
-
-    if [[ -f "$AURLIST" ]]; then
-        echo "📥 AUR packages:"
-        # Clean up AUR list first
-        sed '/^[[:space:]]*$/d' "$AURLIST" > "${AURLIST}.clean"
-        
-        if [[ "$dryrun" == "--dry-run" ]]; then
-            echo "AUR packages that would be installed:"
-            cat "${AURLIST}.clean" || true
-        else
-            if [[ -s "${AURLIST}.clean" ]]; then
-                echo "Installing $(wc -l < "${AURLIST}.clean") AUR packages..."
-                yay -S --needed $(cat "${AURLIST}.clean") || {
-                    echo "❌ Some AUR packages failed to install"
-                    echo "💡 You may want to install them individually:"
-                    cat "${AURLIST}.clean" | sed 's/^/  /'
-                }
-            else
-                echo "⚠️ No valid AUR packages found in $AURLIST"
-            fi
-        fi
-        rm -f "${AURLIST}.clean"
-    fi
-
+  if [[ -f "$AURLIST" ]]; then
+    sed '/^[[:space:]]*$/d' "$AURLIST" > "$AURLIST.clean"
     if [[ "$dryrun" == "--dry-run" ]]; then
-        echo "✅ Dry run complete (no changes made)"
+      cat "$AURLIST.clean"
     else
-        echo "✅ Restore complete!"
+      yay -S --needed - < "$AURLIST.clean" || true
     fi
+    rm "$AURLIST.clean"
+  fi
+
+  echo "✅ Restore complete"
 }
 
 case "${1:-}" in
-    backup) backup ;;
-    restore) restore ;;
-    restore-dry) restore --dry-run ;;
-    *)
-        echo "Usage: $0 {backup|restore|restore-dry}"
-        exit 1
-        ;;
+  backup) backup ;;
+  restore) restore ;;
+  restore-dry) restore --dry-run ;;
+  *) echo "Usage: $0 {backup|restore|restore-dry}" ;;
 esac
 
