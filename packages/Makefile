@@ -12,17 +12,9 @@ NVIM_REPO := https://github.com/ManoloEsS/kickstartmanolo.nvim.git
 .PHONY: all install-gnome clone-dotfiles install-packages setup-nvim install-ohmyzsh setup-ohmyzsh-plugins change-shell stow-configs clean help
 
 # Default target
-all: install-gnome clone-dotfiles install-packages setup-nvim install-ohmyzsh setup-ohmyzsh-plugins change-shell stow-configs
+all: clone-dotfiles install-packages setup-nvim install-ohmyzsh setup-ohmyzsh-plugins change-shell stow-configs
 	@echo "=== Installation completed successfully! ==="
 	@echo "Please restart your system or run 'startx' to begin using your new environment."
-
-# Install GNOME desktop environment
-install-gnome:
-	@echo "=== Installing GNOME desktop environment ==="
-	sudo pacman -Syu --noconfirm || exit 1
-	sudo pacman -S --noconfirm gnome gnome-extra gdm || exit 1
-	sudo systemctl enable gdm || exit 1
-	@echo "=== GNOME installation completed ==="
 
 # Clone dotfiles repository
 clone-dotfiles:
@@ -176,7 +168,6 @@ help:
 	@echo ""
 	@echo "Available targets:"
 	@echo "  all              - Run complete installation process"
-	@echo "  install-gnome    - Install GNOME desktop environment"
 	@echo "  clone-dotfiles   - Clone dotfiles repository"
 	@echo "  install-packages - Install packages from dotfiles"
 	@echo "  setup-nvim       - Setup Neovim configuration"

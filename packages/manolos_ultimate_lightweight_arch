@@ -3,17 +3,48 @@
 
 # Variables
 DOTFILES_DIR := $(HOME)/dotfiles_arch_hypr
-NVIM_CONFIG_DIR := $(XDG_CONFIG_HOME:-$(HOME)/.config)/nvim
+NVIM_CONFIG_DIR := ${XDG_CONFIG_HOME:-$(HOME)/.config}/nvim
 STOW_DIRS := fontconfig hypr pl10k tmux waybar wezterm wofi zsh
 DOTFILES_REPO := https://github.com/ManoloEsS/dotfiles_arch_hypr.git
 NVIM_REPO := https://github.com/ManoloEsS/kickstartmanolo.nvim.git
 
 # Phony targets
-.PHONY: all clone-dotfiles verify-dotfiles-exist cleanup-existing-configs install-packages setup-nvim install-ohmyzsh setup-ohmyzsh-plugins change-shell stow-configs setup-bluetooth install-hyprland verify-stow-links verify-complete-setup clean help
+.PHONY: all clone-dotfiles detect-hardware install-packages setup-nvim install-ohmyzsh setup-ohmyzsh-plugins change-shell cleanup-and-stow setup-bluetooth install-hyprland verify-stow-links verify-configs verify-complete-setup clean help
+
+# Detect hardware and select appropriate GPU drivers
+detect-hardware:
+	@echo "=== Detecting GPUs for driver installation ==="
+	@# Detect all GPUs (handles multiple GPU systems)
+	@echo "# Hardware-specific GPU drivers" > /tmp/gpu_drivers.txt
+	@gpu_list=$$(lspci | grep -i vga | grep -i -o 'nvidia\|amd\|intel\|virtual' | sort -u); \
+	if [ -z "$$gpu_list" ]; then \
+		echo "No GPU detected, using generic drivers"; \
+		echo "# No GPU detected" >> /tmp/gpu_drivers.txt; \
+	else \
+		for gpu in $$gpu_list; do \
+			gpu_lower=$$(echo "$$gpu" | tr '[:upper:]' '[:lower:]'); \
+			case "$$gpu_lower" in \
+				nvidia) \
+					echo "NVIDIA GPU detected - adding NVIDIA drivers"; \
+					echo "nvidia nvidia-utils nvidia-settings nvidia-dkms" >> /tmp/gpu_drivers.txt ;; \
+				amd) \
+					echo "AMD GPU detected - adding AMD drivers"; \
+					echo "xf86-video-amdgpu vulkan-radeon mesa" >> /tmp/gpu_drivers.txt ;; \
+				intel) \
+					echo "Intel GPU detected - adding Intel drivers"; \
+					echo "xf86-video-intel vulkan-intel mesa" >> /tmp/gpu_drivers.txt ;; \
+				virtual|vmware) \
+					echo "Virtual GPU detected - adding VM drivers"; \
+					echo "xf86-video-vesa" >> /tmp/gpu_drivers.txt ;; \
+			esac; \
+		done; \
+	fi
+	@echo "GPU drivers to install:"; cat /tmp/gpu_drivers.txt
 
 # Default target - clean slate Arch/Hyprland setup
-all: clone-dotfiles install-packages setup-nvim install-ohmyzsh setup-ohmyzsh-plugins setup-fzf change-shell cleanup-and-stow setup-bluetooth install-hyprland verify-complete-setup
-	@echo "=== Clean slate Arch/Hyprland installation completed ==="
+all: clone-dotfiles detect-hardware install-packages setup-nvim install-ohmyzsh setup-ohmyzsh-plugins change-shell cleanup-and-stow setup-fzf setup-bluetooth install-hyprland verify-complete-setup
+	@echo "=== Enhanced Arch/Hyprland installation completed ==="
+	@echo "GPU drivers automatically installed based on detected hardware"
 	@echo "Use 'startx' to launch desktop"
 	@echo "Bluetooth is ready for device pairing"
 
@@ -29,56 +60,30 @@ clone-dotfiles:
 	chmod +x $(DOTFILES_DIR)/packages/*.sh || exit 1
 	@echo "=== Dotfiles cloned successfully ==="
 
-# Verify dotfiles repository structure
-verify-dotfiles-exist:
-	@echo "=== Verifying dotfiles repository structure ==="
-	@if [ ! -d "$(DOTFILES_DIR)" ]; then \
-		echo "ERROR: Dotfiles directory not found at $(DOTFILES_DIR)"; \
-		exit 1; \
-	fi
-	@for dir in $(STOW_DIRS); do \
-		if [ ! -d "$(DOTFILES_DIR)/$$dir" ]; then \
-			echo "ERROR: Target directory $$dir not found in dotfiles"; \
-			exit 1; \
-		fi; \
-	done
-	@echo "✅ All required dotfiles directories verified"
 
-# Clean slate: Remove all conflicting configurations
-cleanup-existing-configs:
-	@echo "=== Clean slate: Removing all conflicting configurations ==="
-	@# Safety: Verify dotfiles exist before cleanup
-	@$(MAKE) verify-dotfiles-exist
-	@# Remove Oh My Zsh artifacts with confirmation they exist
-	@if [ -d "$(HOME)/.oh-my-zsh" ]; then \
-		echo "Removing existing Oh My Zsh..."; \
-		rm -rf "$(HOME)/.oh-my-zsh"; \
-	fi
-	@rm -f "$(HOME)/.zshrc" "$(HOME)/.zshrc*" 2>/dev/null || true
-	@# Remove all target config directories with logging
-	@for dir in $(STOW_DIRS); do \
-		if [ -d "$(HOME)/.config/$$dir" ]; then \
-			echo "Removing .config/$$dir..."; \
-			rm -rf "$(HOME)/.config/$$dir"; \
-		fi; \
-		if [ -d "$(HOME)/.$$dir" ]; then \
-			echo "Removing .$$dir..."; \
-			rm -rf "$(HOME)/.$$dir"; \
-		fi; \
-	done
-	@# Remove existing Neovim config
-	@if [ -d "$(NVIM_CONFIG_DIR)" ]; then \
-		echo "Removing existing Neovim config..."; \
-		rm -rf "$(NVIM_CONFIG_DIR)"; \
-	fi
-	@# Cleanup any remaining broken symlinks
-	@echo "Cleaning broken symlinks..."
-	@find "$(HOME)/.config" -maxdepth 2 -type l -exec test ! -e {} \; -delete 2>/dev/null || true
-	@echo "=== Clean slate completed ==="
 
 # Install packages using the restore script
 install-packages:
 	@echo "=== Installing packages ==="
+	@# Ensure GPU drivers file exists
+	@if [ ! -f /tmp/gpu_drivers.txt ]; then \
+		echo "Running hardware detection first..."; \
+		$(MAKE) -f $(firstword $(MAKEFILE_LIST)) detect-hardware; \
+	fi
+	@# Install GPU drivers first via pacman
+	@if [ -f /tmp/gpu_drivers.txt ]; then \
+		echo "Installing GPU drivers via pacman..."; \
+		driver_packages=$$(cat /tmp/gpu_drivers.txt | grep -v '^#' | tr '\n' ' '); \
+		if [ -n "$$driver_packages" ]; then \
+			echo "Attempting to install: $$driver_packages"; \
+			if sudo pacman -S --noconfirm --needed $$driver_packages; then \
+				echo "✅ GPU drivers installed successfully"; \
+			else \
+				echo "⚠️  GPU driver installation failed, continuing with generic drivers"; \
+				sudo pacman -S --noconfirm --needed xf86-video-vesa || echo "⚠️  Even generic driver install failed"; \
+			fi; \
+		fi; \
+	fi
 	@# Install yay first if not present
 	@if ! command -v yay >/dev/null 2>&1; then \
 		echo "Installing yay AUR helper..."; \
@@ -155,15 +160,18 @@ install-ohmyzsh:
 change-shell:
 	@echo "=== Changing default shell to zsh ==="
 	@if command -v zsh >/dev/null 2>&1; then \
-		if [ "$$SHELL" != "$(which zsh)" ]; then \
-			echo $(which zsh) | sudo chsh $$USER || exit 1; \
+		if [ "$$SHELL" != "/usr/bin/zsh" ] && [ "$$SHELL" != "$(which zsh)" ]; then \
+			echo "/usr/bin/zsh" | sudo chsh $$USER || exit 1; \
 			echo "Default shell changed to zsh"; \
 		else \
 			echo "Default shell is already zsh"; \
 		fi; \
 	else \
 		echo "ERROR: zsh is not installed"; \
-		exit 1; \
+		echo "Installing zsh..."; \
+		sudo pacman -S --noconfirm zsh || exit 1; \
+		echo "/usr/bin/zsh" | sudo chsh $$USER || exit 1; \
+		echo "Default shell changed to zsh"; \
 	fi
 	@echo "=== Shell change completed ==="
 
@@ -173,21 +181,25 @@ setup-fzf:
 	@# Ensure .zshrc exists (stowed) and add fzf
 	@if [ -f "$(HOME)/.zshrc" ]; then \
 		if [ -f "/usr/share/fzf/key-bindings.zsh" ] && [ -f "/usr/share/fzf/completion.zsh" ]; then \
-			echo "source /usr/share/fzf/key-bindings.zsh" >> "$(HOME)/.zshrc" && \
-			echo "source /usr/share/fzf/completion.zsh" >> "$(HOME)/.zshrc" && \
+			if ! grep -q "source /usr/share/fzf/key-bindings.zsh" "$(HOME)/.zshrc"; then \
+				echo "source /usr/share/fzf/key-bindings.zsh" >> "$(HOME)/.zshrc"; \
+			fi; \
+			if ! grep -q "source /usr/share/fzf/completion.zsh" "$(HOME)/.zshrc"; then \
+				echo "source /usr/share/fzf/completion.zsh" >> "$(HOME)/.zshrc"; \
+			fi; \
 			echo "✅ FZF integration added to .zshrc"; \
 		else \
 			echo "⚠️  FZF shell files not found in /usr/share/fzf/"; \
 		fi; \
 	else \
-		echo "⚠️  .zshrc not found - run stow-configs first"; \
+		echo "⚠️  .zshrc not found - run cleanup-and-stow first"; \
 	fi
 	@echo "=== FZF integration completed ==="
 
 # Combined cleanup and stow with backup protection
 cleanup-and-stow:
-	@echo "=== Final cleanup and stowing ==="
-	@# Backup system configs if they exist
+	@echo "=== Clean configuration setup ==="
+	@# Backup critical configs if they exist
 	@if [ -f "/etc/X11/xinitrc" ]; then \
 		cp "/etc/X11/xinitrc" "/etc/X11/xinitrc.backup.$(shell date +%Y%m%d_%H%M%S)" && \
 		echo "Backed up system xinitrc"; \
@@ -196,8 +208,6 @@ cleanup-and-stow:
 		cp "$(HOME)/.bashrc" "$(HOME)/.bashrc.backup.$(shell date +%Y%m%d_%H%M%S)" && \
 		echo "Backed up user bashrc"; \
 	fi
-	@# Remove Oh My Zsh configs created by installer (not manual)
-	@rm -rf "$(HOME)/.oh-my-zsh" "$(HOME)/.zshrc" 2>/dev/null || true
 	@# Remove all target config directories
 	@for dir in $(STOW_DIRS); do \
 		if [ -d "$(HOME)/.config/$$dir" ]; then \
@@ -213,20 +223,19 @@ cleanup-and-stow:
 	@if [ -d "$(NVIM_CONFIG_DIR)" ]; then \
 		rm -rf "$(NVIM_CONFIG_DIR)"; \
 	fi
-	@# Cleanup any remaining broken symlinks
-	@echo "Cleaning broken symlinks..."
+	@# Cleanup broken symlinks
 	@find "$(HOME)/.config" -maxdepth 2 -type l -exec test ! -e {} \; -delete 2>/dev/null || true
-	@# Now stow everything cleanly
+	@# Stow all configurations
+	@echo "Stowing configurations..."
 	cd $(DOTFILES_DIR) && \
 	for dir in $(STOW_DIRS); do \
 		if [ -d "$$dir" ]; then \
 			echo "Stowing $$dir..."; \
 			stow -d $(DOTFILES_DIR) -t $(HOME) $$dir || exit 1; \
-			echo "✅ Successfully stowed $$dir"; \
 		fi; \
 	done
 	@echo "=== Cleanup and stowing completed ==="
-	@$(MAKE) verify-stow-links
+	@$(MAKE) -f $(firstword $(MAKEFILE_LIST)) verify-configs
 
 # Verify stowed symlinks
 verify-stow-links:
@@ -249,20 +258,50 @@ verify-stow-links:
 		exit 1; \
 	fi
 
+# Verify critical configurations
+verify-configs:
+	@echo "=== Verifying critical configurations ==="
+	@# Check shell config
+	@if [ ! -f "$(HOME)/.zshrc" ]; then \
+		echo "❌ .zshrc not found after stowing"; \
+		exit 1; \
+	fi
+	@# Check Hyprland config
+	@if [ ! -f "$(HOME)/.config/hypr/hyprland.conf" ]; then \
+		echo "❌ Hyprland config not found after stowing"; \
+		exit 1; \
+	fi
+	@# Check Waybar config (config.jsonc or config)
+	@if [ ! -f "$(HOME)/.config/waybar/config.jsonc" ] && [ ! -f "$(HOME)/.config/waybar/config" ]; then \
+		echo "❌ Waybar config not found after stowing"; \
+		exit 1; \
+	fi
+	@# Check Neovim config
+	@if [ ! -f "$(NVIM_CONFIG_DIR)/init.lua" ]; then \
+		echo "❌ Neovim config not found after stowing"; \
+		exit 1; \
+	fi
+	@echo "✅ All critical configurations verified"
+
 # Setup Bluetooth daemon for Wayland
 setup-bluetooth:
 	@echo "=== Setting up Bluetooth daemon ==="
+	@# Install Bluetooth packages if needed
+	@if ! pacman -Q bluez >/dev/null 2>&1; then \
+		echo "Installing Bluetooth packages..."; \
+		sudo pacman -S --noconfirm bluez bluez-utils || exit 1; \
+	fi
 	@# Enable Bluetooth service
 	sudo systemctl enable --now bluetooth || exit 1
 	@# Install and enable PipeWire for Wayland Bluetooth support
-	@if ! command -v pipewire >/dev/null 2>&1; then \
+	@if ! command -v pipewire >/dev/null 2>&1 || ! pacman -Q pipewire >/dev/null 2>&1; then \
 		echo "Installing PipeWire for Bluetooth support..."; \
 		sudo pacman -S --noconfirm pipewire pipewire-audio pipewire-pulse wireplumber || exit 1; \
 	fi
-	@# Enable PipeWire services
-	sudo systemctl enable --now pipewire pipewire-pulse wireplumber || exit 1
+	@# Enable PipeWire services (only if they exist)
+	@systemctl --user enable --now pipewire pipewire-pulse wireplumber 2>/dev/null || echo "⚠️  Some PipeWire services may not be available"
 	@# Verify Bluetooth daemon is running
-	@if systemctl is-active --quiet bluetooth; then \
+	@if sudo systemctl is-active --quiet bluetooth 2>/dev/null; then \
 		echo "✅ Bluetooth daemon is running"; \
 	else \
 		echo "❌ Bluetooth daemon failed to start"; \
@@ -295,7 +334,7 @@ verify-complete-setup:
 		fi; \
 	done
 	@# Verify Bluetooth daemon
-	@if systemctl is-active --quiet bluetooth; then \
+	@if sudo systemctl is-active --quiet bluetooth 2>/dev/null; then \
 		echo "✅ Bluetooth daemon running"; \
 	else \
 		echo "⚠️  Bluetooth daemon not active (run 'make setup-bluetooth')"; \
@@ -315,19 +354,20 @@ clean:
 
 # Display help information
 help:
-	@echo "Manolo's Ultimate Lightweight Arch Linux Setup"
+	@echo "Manolo's Ultimate Lightweight Arch Linux Setup (Enhanced)"
 	@echo ""
 	@echo "Available targets:"
 	@echo "  all                    - Run complete clean slate installation"
 	@echo "  clone-dotfiles         - Clone dotfiles repository"
-	@echo "  verify-dotfiles-exist   - Verify dotfiles structure"
-	@echo "  install-packages        - Install packages from dotfiles"
+	@echo "  detect-hardware        - Detect GPUs and prepare drivers"
+	@echo "  install-packages       - Install packages from dotfiles with GPU drivers"
 	@echo "  setup-nvim            - Setup Neovim configuration"
 	@echo "  install-ohmyzsh        - Install Oh My Zsh manually (no installer conflicts)"
 	@echo "  setup-ohmyzsh-plugins - Setup Oh My Zsh plugins and themes"
 	@echo "  setup-fzf              - Setup fzf shell integration"
 	@echo "  change-shell           - Change default shell to zsh"
 	@echo "  cleanup-and-stow       - Clean configs and stow all dotfiles"
+	@echo "  verify-configs        - Verify critical configurations after stowing"
 	@echo "  setup-bluetooth         - Setup Bluetooth daemon for Wayland"
 	@echo "  install-hyprland        - Setup Hyprland environment (manual startx)"
 	@echo "  verify-complete-setup    - Verify complete installation"
@@ -336,13 +376,16 @@ help:
 	@echo ""
 	@echo "Usage:"
 	@echo "  make all                           # Complete installation"
-	@echo "  make install-packages                # Install packages only"
+	@echo "  make detect-hardware                # Detect GPU hardware only"
+	@echo "  make install-packages               # Install packages with GPU drivers only"
 	@echo "  make setup-ohmyzsh-plugins         # Setup Oh My Zsh plugins only"
 	@echo "  make setup-fzf                      # Setup fzf integration only"
 	@echo "  make cleanup-and-stow               # Clean configs and stow all dotfiles"
+	@echo "  make verify-configs                # Verify critical configs only"
 	@echo "  make verify-complete-setup           # Verify complete setup"
 	@echo ""
 	@echo "After installation:"
+	@echo "  - GPU drivers automatically installed based on detected hardware"
 	@echo "  - Use 'startx' to launch Hyprland desktop"
 	@echo "  - Bluetooth is ready for device pairing"
 	@echo "  - All configurations are from your dotfiles repository"
