@@ -1,8 +1,6 @@
-
 docker-desktop
 epson-inkjet-printer-escpr
 nerdfetch
-
 quivira
 ttf-symbola
 wezterm-git

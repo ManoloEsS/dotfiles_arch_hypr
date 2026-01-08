@@ -84,38 +84,84 @@ restore() {
         echo "🔍 Dry run: packages that would be installed"
     else
         echo "🔄 Restoring packages..."
-        sudo pacman -Syu --noconfirm
-        sudo pacman -S --needed --noconfirm base-devel git
+        echo "📡 Updating package databases..."
+        sudo pacman -Syu --noconfirm || {
+            echo "❌ Failed to update package databases"
+            return 1
+        }
+        
+        echo "🔧 Installing essential build tools..."
+        sudo pacman -S --needed --noconfirm base-devel git || {
+            echo "❌ Failed to install base development tools"
+            return 1
+        }
     fi
 
     if [[ -f "$PKGLIST" ]]; then
         echo "📥 Pacman packages:"
+        # Clean up package list first
+        sed '/^[[:space:]]*$/d' "$PKGLIST" > "${PKGLIST}.clean"
+        
         if [[ "$dryrun" == "--dry-run" ]]; then
-            pacman -S --needed --print-format "%n" - < "$PKGLIST" || true
+            echo "Packages that would be installed:"
+            cat "${PKGLIST}.clean" || true
         else
-            sudo pacman -S --needed - < "$PKGLIST"
+            if [[ -s "${PKGLIST}.clean" ]]; then
+                echo "Installing $(wc -l < "${PKGLIST}.clean") packages..."
+                sudo pacman -S --needed $(cat "${PKGLIST}.clean") || {
+                    echo "❌ Some pacman packages failed to install"
+                    return 1
+                }
+            else
+                echo "⚠️ No valid packages found in $PKGLIST"
+            fi
         fi
+        rm -f "${PKGLIST}.clean"
     fi
 
     if ! command -v yay &>/dev/null; then
         if [[ "$dryrun" == "--dry-run" ]]; then
             echo "📥 Would install yay (AUR helper)"
         else
-            echo "📥 Installing yay..."
+            echo "📥 Installing yay (AUR helper)..."
             tmpdir=$(mktemp -d)
-            git clone https://aur.archlinux.org/yay.git "$tmpdir"
-            (cd "$tmpdir" && makepkg -si --noconfirm)
-            rm -rf "$tmpdir"
+            if git clone https://aur.archlinux.org/yay.git "$tmpdir" 2>/dev/null; then
+                (cd "$tmpdir" && makepkg -si --noconfirm) || {
+                    echo "❌ Failed to build and install yay"
+                    rm -rf "$tmpdir"
+                    return 1
+                }
+                rm -rf "$tmpdir"
+                echo "✅ yay installed successfully"
+            else
+                echo "❌ Failed to clone yay repository"
+                rm -rf "$tmpdir"
+                return 1
+            fi
         fi
     fi
 
     if [[ -f "$AURLIST" ]]; then
         echo "📥 AUR packages:"
+        # Clean up AUR list first
+        sed '/^[[:space:]]*$/d' "$AURLIST" > "${AURLIST}.clean"
+        
         if [[ "$dryrun" == "--dry-run" ]]; then
-            cat "$AURLIST"
+            echo "AUR packages that would be installed:"
+            cat "${AURLIST}.clean" || true
         else
-            yay -S --needed - < "$AURLIST"
+            if [[ -s "${AURLIST}.clean" ]]; then
+                echo "Installing $(wc -l < "${AURLIST}.clean") AUR packages..."
+                yay -S --needed $(cat "${AURLIST}.clean") || {
+                    echo "❌ Some AUR packages failed to install"
+                    echo "💡 You may want to install them individually:"
+                    cat "${AURLIST}.clean" | sed 's/^/  /'
+                }
+            else
+                echo "⚠️ No valid AUR packages found in $AURLIST"
+            fi
         fi
+        rm -f "${AURLIST}.clean"
     fi
 
     if [[ "$dryrun" == "--dry-run" ]]; then

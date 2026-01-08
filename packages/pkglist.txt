@@ -15,7 +15,6 @@ base-devel
 bash-completion
 bat
 bind
-
 bluez
 bluez-utils
 brightnessctl
@@ -59,7 +58,6 @@ eos-qogir-icons
 eos-quickstart
 eos-rankmirrors
 eos-settings-gnome
-
 ethtool
 evince
 exfatprogs
@@ -68,7 +66,6 @@ f2fs-tools
 fastfetch
 ffmpegthumbnailer
 file-roller
-
 firewalld
 foomatic-db
 foomatic-db-engine
@@ -76,7 +73,6 @@ foomatic-db-gutenprint-ppds
 foomatic-db-nonfree
 foomatic-db-nonfree-ppds
 foomatic-db-ppds
-
 ghex
 ghostscript
 ghostty
@@ -85,7 +81,6 @@ git-filter-repo
 github-cli
 glances
 glow
-
 go
 gobject-introspection
 gparted
@@ -134,14 +129,12 @@ iptables-nft
 iwd
 jfsutils
 kernel-install-for-dracut
-
 lazygit
 less
 libdvdcss
 libgsf
 libopenraw
 libwnck3
-
 linux-headers
 logrotate
 loupe
@@ -166,7 +159,6 @@ ncdu
 ncspot
 neovim
 netctl
-
 networkmanager
 networkmanager-dmenu
 networkmanager-openconnect
@@ -181,7 +173,6 @@ npm
 nss-mdns
 ntfs-3g
 ntp
-
 onetbb
 openbsd-netcat
 opencv
@@ -226,7 +217,6 @@ python-pipx
 python-pyqt6
 python-pyserial
 qt5-wayland
-
 rebuild-detector
 reflector
 reflector-simple
@@ -237,7 +227,6 @@ rust
 rygel
 s-nail
 sg3_utils
-
 simple-scan
 smartmontools
 snapshot
@@ -251,17 +240,14 @@ stow
 sudo
 sushi
 swaync
-
 sysfsutils
 sysprof
 system-config-printer
 systemd-sysvcompat
 task
 texinfo
-
 tldr
 tmux
-
 ttf-0xproto-nerd
 ttf-3270-nerd
 ttf-agave-nerd
