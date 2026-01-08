@@ -42,10 +42,6 @@ verify-dotfiles-exist:
 			exit 1; \
 		fi; \
 	done
-	@if [ ! -d "$(DOTFILES_DIR)/nvim" ]; then \
-		echo "ERROR: Neovim target directory not found"; \
-		exit 1; \
-	fi
 	@echo "✅ All required dotfiles directories verified"
 
 # Clean slate: Remove all conflicting configurations
@@ -285,7 +281,7 @@ install-hyprland:
 verify-complete-setup:
 	@echo "=== Final setup verification ==="
 	@# Verify shell
-	@if [ "$$SHELL" != "$(which zsh)" ]; then \
+	@if [ "$(SHELL)" != "$(which zsh)" ]; then \
 		echo "⚠️  Warning: Shell not changed to zsh yet"; \
 	else \
 		echo "✅ Shell properly set to zsh"; \
