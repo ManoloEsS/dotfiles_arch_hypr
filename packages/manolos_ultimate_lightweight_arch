@@ -14,7 +14,7 @@ NVIM_REPO := https://github.com/ManoloEsS/kickstartmanolo.nvim.git
 # Detect hardware and select appropriate GPU drivers
 detect-hardware:
 	@echo "=== Detecting GPUs for driver installation ==="
-	@# Detect all GPUs (handles multiple GPU systems)
+	@# Detect all GPUs - handles multiple GPU systems
 	@echo "# Hardware-specific GPU drivers" > /tmp/gpu_drivers.txt
 	@gpu_list=$$(lspci | grep -i vga | grep -i -o 'nvidia\|amd\|intel\|virtual' | sort -u); \
 	if [ -z "$$gpu_list" ]; then \
@@ -45,7 +45,7 @@ detect-hardware:
 all: clone-dotfiles detect-hardware install-packages setup-nvim install-ohmyzsh setup-ohmyzsh-plugins change-shell cleanup-and-stow setup-fzf setup-bluetooth install-hyprland verify-complete-setup
 	@echo "=== Enhanced Arch/Hyprland installation completed ==="
 	@echo "GPU drivers automatically installed based on detected hardware"
-	@echo "Use 'startx' to launch desktop"
+	@echo "Hyprland will auto-start on TTY login (TTY1-3)"
 	@echo "Bluetooth is ready for device pairing"
 
 # Clone dotfiles repository
@@ -266,6 +266,11 @@ verify-configs:
 		echo "❌ .zshrc not found after stowing"; \
 		exit 1; \
 	fi
+	@# Check .zprofile for TTY autostart
+	@if [ ! -f "$(HOME)/.zprofile" ]; then \
+		echo "❌ .zprofile not found after stowing"; \
+		exit 1; \
+	fi
 	@# Check Hyprland config
 	@if [ ! -f "$(HOME)/.config/hypr/hyprland.conf" ]; then \
 		echo "❌ Hyprland config not found after stowing"; \
@@ -309,12 +314,13 @@ setup-bluetooth:
 	fi
 	@echo "=== Bluetooth setup completed ==="
 
-# Setup Hyprland environment (manual startx)
+# Setup Hyprland environment with TTY autostart
 install-hyprland:
 	@echo "=== Setting up Hyprland environment ==="
 	sudo pacman -Syu --noconfirm || exit 1
-	@echo "=== Hyprland environment ready for manual startx ==="
-	@echo "Note: Use 'startx' to launch desktop after setup completes"
+	@echo "=== Hyprland environment ready for TTY autostart ==="
+	@echo "Note: Hyprland will auto-start on TTY1-3 login"
+	@echo "      Set NO_AUTOSTART=1 to disable autostart temporarily"
 
 # Final setup verification
 verify-complete-setup:
@@ -369,7 +375,7 @@ help:
 	@echo "  cleanup-and-stow       - Clean configs and stow all dotfiles"
 	@echo "  verify-configs        - Verify critical configurations after stowing"
 	@echo "  setup-bluetooth         - Setup Bluetooth daemon for Wayland"
-	@echo "  install-hyprland        - Setup Hyprland environment (manual startx)"
+	@echo "  install-hyprland        - Setup Hyprland environment with TTY autostart"
 	@echo "  verify-complete-setup    - Verify complete installation"
 	@echo "  clean                  - Clean up installation artifacts"
 	@echo "  help                   - Display this help message"
@@ -386,7 +392,9 @@ help:
 	@echo ""
 	@echo "After installation:"
 	@echo "  - GPU drivers automatically installed based on detected hardware"
-	@echo "  - Use 'startx' to launch Hyprland desktop"
+	@echo "  - Hyprland auto-starts on TTY1-3 login (no display manager)"
+	@echo "  - Set NO_AUTOSTART=1 to temporarily disable autostart"
+	@echo "  - SSH sessions are safe (no autostart in SSH)"
 	@echo "  - Bluetooth is ready for device pairing"
 	@echo "  - All configurations are from your dotfiles repository"
 	@echo "  - System backups created in /etc/X11/xinitrc.backup.* if needed"
