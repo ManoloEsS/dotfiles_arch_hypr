@@ -6,11 +6,12 @@ This guide walks you through setting up a complete Arch Linux system with Hyprla
 
 **Features:**
 - 🎮 **Automatic GPU Detection** - Installs appropriate drivers for NVIDIA, AMD, Intel, or VM systems
-- 🖥️ **Hyprland Window Manager** - Modern Wayland-based tiling window manager
+- 🖥️ **Hyprland Window Manager** - Modern Wayland-based tiling window manager with TTY autostart
 - 🐚 **Zsh + Oh My Zsh** - Enhanced shell with plugins and themes
 - 🎨 **Complete Theming** - Consistent dark theme across all applications
 - 🔧 **Development Tools** - Git, Neovim, Docker, and more
 - 🔊 **Audio/Bluetooth** - PipeWire audio system with Bluetooth support
+- 🚀 **Seamless Boot** - Auto-starts desktop on TTY1-3 login (no display manager)
 
 ## System Requirements
 
@@ -140,17 +141,15 @@ sudo reboot
 
 ### 7.2 Start Desktop Environment
 
-After rebooting, login to your user account and run:
+After rebooting, simply login to your user account on TTY1-3:
 
-```bash
-# Launch Hyprland
-startx
-```
+**🚀 Hyprland starts automatically!**
 
 **First Run Notes:**
-- Hyprland will start with default keybindings
+- Hyprland will auto-start on TTY1-3 login
 - Powerlevel10k configuration wizard may run in terminal
 - Allow a few minutes for all services to initialize
+- SSH sessions are safe (no autostart in SSH)
 
 ### 7.3 Verify Everything Works
 
@@ -213,11 +212,17 @@ sudo pacman -S xf86-video-intel vulkan-intel     # For Intel
 
 #### 2. Display Won't Start
 ```bash
-# Check X server logs
-cat ~/.local/share/xorg/Xorg.0.log | grep -i error
+# Check Wayland logs
+journalctl --user -u hyprland | grep -i error
 
-# Try generic drivers
-sudo pacman -S xf86-video-vesa
+# Disable autostart temporarily
+NO_AUTOSTART=1
+
+# Try starting Hyprland manually
+Hyprland
+
+# Check XWayland if needed for X11 apps
+Hyprland &  # Then check with XWayland logs
 ```
 
 #### 3. Audio Not Working
@@ -334,8 +339,8 @@ rm -rf ~/dotfiles_arch_hypr
 
 ### Essential Commands
 ```bash
-# Launch desktop
-startx
+# Launch desktop (manual, if autostart disabled)
+NO_AUTOSTART=1  # Then login and manually start Hyprland
 
 # Update system
 sudo pacman -Syu && yay -Syu
@@ -361,10 +366,11 @@ nmtui
 
 ### Default Keybindings (Hyprland)
 - `MOD = SUPER (Windows key)`
-- `MOD + Enter` - Launch terminal
+- `MOD + Enter` - Launch terminal (wezterm)
 - `MOD + D` - Launch app launcher (wofi)
 - `MOD + Shift + Q` - Close window
 - `MOD + SHIFT + C` - Exit Hyprland
+- `CTRL + ALT + F3` - Switch to TTY3 (for troubleshooting)
 - `MOD + [Arrow keys]` - Focus windows
 - `MOD + SHIFT + [Arrow keys]` - Move windows
 - `MOD + [1-9]` - Switch workspaces
