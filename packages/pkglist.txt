@@ -164,6 +164,7 @@ lsd
 lsscsi
 luarocks
 lvm2
+ly
 malcontent
 man-db
 man-pages
@@ -252,6 +253,8 @@ sg3_utils
 showtime
 simple-scan
 smartmontools
+snap-pac
+snapper
 snapshot
 sof-firmware
 splix
@@ -349,6 +352,7 @@ wireplumber
 wl-clipboard
 woff2-font-awesome
 wofi
+wol
 wpa_supplicant
 xdg-desktop-portal
 xdg-desktop-portal-gnome
