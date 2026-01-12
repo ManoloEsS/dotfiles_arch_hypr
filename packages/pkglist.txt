@@ -178,7 +178,6 @@ nano
 nano-syntax-highlighting
 nautilus
 ncdu
-ncspot
 neovim
 netctl
 network-manager-applet
@@ -343,6 +342,7 @@ upower
 usb_modeswitch
 usbutils
 vi
+vim
 vulkan-headers
 waybar
 welcome
