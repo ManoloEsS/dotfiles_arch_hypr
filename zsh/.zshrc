@@ -15,6 +15,8 @@ fi
 
 # Path to your Oh My Zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
+export EDITOR=nvim
+export VISUAL=nvim
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time Oh My Zsh is loaded, in which case,
 # to know which specific one was loaded, run: echo $RANDOM_THEME
@@ -228,3 +230,4 @@ source /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme
 
 # opencode
 export PATH=/home/tlaloch/.opencode/bin:$PATH
+export PATH="$HOME/.cargo/bin:$PATH"
