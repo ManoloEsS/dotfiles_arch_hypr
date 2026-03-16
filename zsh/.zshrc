@@ -231,3 +231,16 @@ source /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme
 # opencode
 export PATH=/home/tlaloch/.opencode/bin:$PATH
 export PATH="$HOME/.cargo/bin:$PATH"
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+# The next line updates PATH for the Google Cloud SDK.
+if [ -f '/home/tlaloch/google-cloud-sdk/path.zsh.inc' ]; then . '/home/tlaloch/google-cloud-sdk/path.zsh.inc'; fi
+
+# The next line enables shell command completion for gcloud.
+if [ -f '/home/tlaloch/google-cloud-sdk/completion.zsh.inc' ]; then . '/home/tlaloch/google-cloud-sdk/completion.zsh.inc'; fi
+
+# Turso
+export PATH="$PATH:/home/tlaloch/.turso"

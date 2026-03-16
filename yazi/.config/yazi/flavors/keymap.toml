@@ -1,0 +1,4 @@
+[mgr]
+prepend_keymap = [
+  { on = "B", run = "open --opener=browser", desc = "Open HTML in browser" }
+]
