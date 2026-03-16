@@ -183,6 +183,7 @@ zstyle ':fzf-tab:complete:__zoxide_z:*' fzf-preview 'ls --color $realpath'
 alias ls='lsd'
 alias vim='nvim'
 alias c='clear'
+alias lazyvim='~/.local/bin/lazyvim'
 
 # Shell integrations
 
